@@ -1,6 +1,7 @@
 {
-  "name": "software-node-apps",
+  "name": "palm-recognition-containment",
   "version": "0.1.0",
+  "description": "Palm Recognition Containment System - Advanced IoT Gateway Management",
   "private": true,
   "scripts": {
     "dev": "next dev",

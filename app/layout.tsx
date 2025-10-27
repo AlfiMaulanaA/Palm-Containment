@@ -9,17 +9,17 @@ import dynamic from "next/dynamic";
 import { ThemeProvider } from "next-themes";
 
 // Mengambil nama aplikasi dan ikon dari environment variables atau menggunakan nilai default
-const AppName = process.env.NEXT_PUBLIC_APP_NAME || " MQTT Gateway";
+const AppName = process.env.NEXT_PUBLIC_APP_NAME || "Palm Recognition Containment";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: `${AppName} | GSPE`,
-  description: "Enterprise devices and user management system",
+  title: AppName,
+  description: "Advanced palm recognition containment system with IoT gateway management",
   icons: {
-    icon: "/node-icon.svg",
-    shortcut: "/node-icon.svg",
-    apple: "/apple-touch-icon.png",
+    icon: "/palm-icon.svg",
+    shortcut: "/palm-icon.svg",
+    apple: "/palm-icon.svg",
   },
 };
 
