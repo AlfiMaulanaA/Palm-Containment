@@ -58,6 +58,12 @@ const menuData = {
           icon: Users,
           isUse: true,
         },
+        {
+          title: "User Database",
+          url: "/palm-user-data",
+          icon: Users,
+          isUse: true,
+        },
       ],
     },
     {

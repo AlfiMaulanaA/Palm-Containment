@@ -114,6 +114,154 @@ export async function deletePalmUser(userId: string): Promise<void> {
 }
 
 /**
+ * Fetch palm users from database
+ * Sends command: {"command": "get_users", "request_id": "unique_id"}
+ * @returns Promise that resolves when command is sent
+ */
+export async function fetchPalmUsers(): Promise<string> {
+  const mqttClient = getMQTTClient();
+  if (!mqttClient) {
+    throw new Error("MQTT client not available. Ensure MQTT is connected.");
+  }
+
+  // Generate unique request ID
+  const requestId = `fetch_users_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  const payload = JSON.stringify({
+    command: "get_users",
+    request_id: requestId,
+    timestamp: new Date().toISOString()
+  });
+
+  try {
+    const success = mqttClient.publish(PALM_CONTROL_TOPIC, payload);
+    if (!success) {
+      throw new Error("Failed to send fetch users command");
+    }
+    console.log(`Fetch palm users command sent with request ID: ${requestId}`);
+    return requestId;
+  } catch (error) {
+    console.error("Error sending fetch users command:", error);
+    throw new Error("Failed to send fetch users command");
+  }
+}
+
+/**
+ * Create new palm user in database
+ * Sends command: {"command": "create_user", "user_id": "...", "name": "...", ...}
+ * @param userData - User data object
+ * @returns Promise that resolves when command is sent
+ */
+export async function createPalmUser(userData: {
+  user_id: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  status?: string;
+}): Promise<void> {
+  if (!userData.user_id || userData.user_id.trim() === "") {
+    throw new Error("User ID is required for creating user");
+  }
+
+  const mqttClient = getMQTTClient();
+  if (!mqttClient) {
+    throw new Error("MQTT client not available. Ensure MQTT is connected.");
+  }
+
+  const payload = JSON.stringify({
+    command: "create_user",
+    ...userData,
+    timestamp: new Date().toISOString()
+  });
+
+  try {
+    const success = mqttClient.publish(PALM_CONTROL_TOPIC, payload);
+    if (!success) {
+      throw new Error("Failed to send create user command");
+    }
+    console.log(`Create palm user command sent for user: ${userData.user_id}`);
+  } catch (error) {
+    console.error("Error sending create user command:", error);
+    throw new Error("Failed to send create user command");
+  }
+}
+
+/**
+ * Start biometric enrollment for a registered user
+ * Sends command: {"command": "start_enrollment", "user_id": "..."}
+ * This tells the palm device to start scanning RGB and IR biometric data
+ * @param userId - The user ID to enroll biometric data for
+ * @returns Promise that resolves when command is sent
+ */
+export async function startBiometricEnrollment(userId: string): Promise<void> {
+  if (!userId || userId.trim() === "") {
+    throw new Error("User ID is required for biometric enrollment");
+  }
+
+  const mqttClient = getMQTTClient();
+  if (!mqttClient) {
+    throw new Error("MQTT client not available. Ensure MQTT is connected.");
+  }
+
+  const payload = JSON.stringify({
+    command: "start_enrollment",
+    user_id: userId.trim(),
+    timestamp: new Date().toISOString()
+  });
+
+  try {
+    const success = mqttClient.publish(PALM_CONTROL_TOPIC, payload);
+    if (!success) {
+      throw new Error("Failed to send biometric enrollment command");
+    }
+    console.log(`Biometric enrollment command sent for user: ${userId}`);
+  } catch (error) {
+    console.error("Error sending biometric enrollment command:", error);
+    throw new Error("Failed to send biometric enrollment command");
+  }
+}
+
+/**
+ * Update existing palm user in database
+ * Sends command: {"command": "update_user", "user_id": "...", "name": "...", ...}
+ * @param userData - User data object with user_id required
+ * @returns Promise that resolves when command is sent
+ */
+export async function updatePalmUser(userData: {
+  user_id: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  status?: string;
+}): Promise<void> {
+  if (!userData.user_id || userData.user_id.trim() === "") {
+    throw new Error("User ID is required for updating user");
+  }
+
+  const mqttClient = getMQTTClient();
+  if (!mqttClient) {
+    throw new Error("MQTT client not available. Ensure MQTT is connected.");
+  }
+
+  const payload = JSON.stringify({
+    command: "update_user",
+    ...userData,
+    timestamp: new Date().toISOString()
+  });
+
+  try {
+    const success = mqttClient.publish(PALM_CONTROL_TOPIC, payload);
+    if (!success) {
+      throw new Error("Failed to send update user command");
+    }
+    console.log(`Update palm user command sent for user: ${userData.user_id}`);
+  } catch (error) {
+    console.error("Error sending update user command:", error);
+    throw new Error("Failed to send update user command");
+  }
+}
+
+/**
  * Hook/function to listen for palm device status responses
  * Status responses come on topic: palm/status
  * Example: {"status": "ok", "message": "user successfully registered"}

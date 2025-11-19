@@ -1,0 +1,29 @@
+[Unit]
+Description=Palm Recognition Door Controller
+After=network.target mqtt.service
+Wants=network.target
+
+[Service]
+Type=simple
+Group=acs
+WorkingDirectory=/home/acs
+ExecStart=/usr/bin/python3 /home/acs/palm_door_controller.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=palm-door-controller
+
+# MQTT and network requirements
+Wants=network-online.target
+After=network-online.target
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/acs /var/log
+ProtectHome=false
+
+[Install]
+WantedBy=multi-user.target

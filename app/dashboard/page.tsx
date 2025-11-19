@@ -51,7 +51,7 @@ export default function DashboardPage() {
   // Get camera IP - production uses current hostname, development uses env variable
   const cameraBaseUrl = process.env.NODE_ENV === "production"
     ? `${window.location.hostname}:8080`
-    : (process.env.NEXT_PUBLIC_PALM_CAMERA_IP || "192.168.2.110:8080");
+    : (process.env.NEXT_PUBLIC_PALM_CAMERA_IP || "192.168.0.101:8080");
 
   // Image URLs with timestamp for refresh (like Vue.js)
   const [imageUrl1, setImageUrl1] = useState(`http://${cameraBaseUrl}/1.ir.png?${Date.now()}`);

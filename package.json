@@ -12,7 +12,8 @@
     "setup": "npm run install-sqlite",
     "install-sqlite": "npm rebuild better-sqlite3",
     "postinstall": "npm run install-sqlite",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db-handler": "./run_db_handler.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

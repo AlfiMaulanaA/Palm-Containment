@@ -1,0 +1,13 @@
+{
+    "enable": true,
+    "broker_address": "192.168.0.109",
+    "broker_port": 1883,
+    "username": "",
+    "password": "",
+    "qos": 1,
+    "retain": true,
+    "pub_topic_status": "palm/status",
+    "pub_topic_result": "palm/compare/result",
+    "sub_topic": "palm/control"
+
+}
