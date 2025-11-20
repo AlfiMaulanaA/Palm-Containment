@@ -50,6 +50,8 @@ export default function DashboardPage() {
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<"success" | "danger" | "warning" | "info">("info");
   const [openDoorStatus, setOpenDoorStatus] = useState("");
+  const [showRecognitionResults, setShowRecognitionResults] = useState(false);
+  const [isHidingResults, setIsHidingResults] = useState(false);
 
   // Get camera IP - production uses current hostname, development uses env variable
   const cameraBaseUrl = process.env.NODE_ENV === "production"
@@ -83,6 +85,7 @@ export default function DashboardPage() {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messageHandlersRef = useRef<Map<string, (topic: string, message: Buffer) => void>>(new Map());
   const isSubscribedRef = useRef(false);
+  const autoHideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Limited compare results (like Vue.js computed)
   const limitedCompareResults = compareResults.slice(0, 5);
@@ -195,6 +198,25 @@ export default function DashboardPage() {
               return newResults.length > 10 ? newResults.slice(0, 10) : newResults;
             });
 
+            // Show recognition results and start/reset auto-hide timer
+            setShowRecognitionResults(true);
+
+            // Clear existing timer if any
+            if (autoHideTimerRef.current) {
+              clearTimeout(autoHideTimerRef.current);
+            }
+
+            // Start new auto-hide timer (5 seconds)
+            autoHideTimerRef.current = setTimeout(() => {
+              // Start hide animation
+              setIsHidingResults(true);
+              // After animation completes, unmount the component
+              setTimeout(() => {
+                setShowRecognitionResults(false);
+                setIsHidingResults(false);
+              }, 500); // Match animation duration
+            }, 5000);
+
             // If score >= 0.8, auto open door
             if (data.score >= 0.8) {
               setTimeout(() => triggerOpenDoor(), 500); // Small delay
@@ -274,6 +296,9 @@ export default function DashboardPage() {
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
       }
+      if (autoHideTimerRef.current) {
+        clearTimeout(autoHideTimerRef.current);
+      }
     };
   }, []);
 
@@ -332,8 +357,12 @@ export default function DashboardPage() {
 
 
       {/* Palm Compare Results */}
-      {limitedCompareResults.length > 0 && (
-        <Card className="border shadow-sm">
+      {limitedCompareResults.length > 0 && (showRecognitionResults || isHidingResults) && (
+        <Card className={`border shadow-sm transition-all duration-500 ease-in-out ${
+          showRecognitionResults && !isHidingResults
+            ? 'opacity-100 transform translate-y-0'
+            : 'opacity-0 transform -translate-y-2 pointer-events-none'
+        }`}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Hand className="h-5 w-5" />

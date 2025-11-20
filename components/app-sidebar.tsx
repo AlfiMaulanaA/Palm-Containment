@@ -56,10 +56,10 @@ const menuData = {
           title: "Palm Users",
           url: "/palm-users",
           icon: Users,
-          isUse: true,
+          isUse: false,
         },
         {
-          title: "User Database",
+          title: "User Integrations",
           url: "/palm-user-data",
           icon: Users,
           isUse: true,
@@ -137,15 +137,16 @@ export const AppSidebar = memo(function AppSidebar() {
                 <SidebarMenu>
                   {visibleItems.map((item, itemIndex) => {
                     const IconComponent = item.icon;
+                    const isItemActive = item.url === "/" ? pathname === "/" : pathname.startsWith(item.url);
                     return (
                       <SidebarMenuItem key={itemIndex} className="relative">
                         <SidebarMenuButton
                           asChild
-                          isActive={pathname === item.url}
-                          className="group flex items-center gap-2 px-3 py-2 rounded-md w-full transition-colors text-sidebar-foreground hover:bg-muted/50 hover:text-sidebar-accent-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-medium data-[active=true]:border-l-2 data-[active=true]:border-l-primary"
+                          isActive={isItemActive}
+                          className="group flex items-center gap-3 px-3 py-2 rounded-md w-full transition-all duration-200 text-sidebar-foreground hover:bg-primary/5 hover:text-primary data-[active=true]:bg-primary/20 data-[active=true]:text-gray-900 data-[active=true]:font-semibold data-[active=true]:border-l-4 data-[active=true]:border-l-primary data-[active=true]:shadow-sm"
                         >
                           <Link href={item.url}>
-                            <IconComponent className="h-4 w-4 text-sidebar-foreground/50 group-hover:text-sidebar-accent-foreground" />
+                            <IconComponent className={`h-4 w-4 text-sidebar-foreground/50 group-hover:text-sidebar-accent-foreground ${isItemActive ? 'text-primary' : ''}`} />
                             <span>{item.title}</span>
                           </Link>
                         </SidebarMenuButton>

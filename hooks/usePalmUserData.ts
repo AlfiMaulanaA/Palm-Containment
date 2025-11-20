@@ -38,9 +38,12 @@ export function usePalmUserData() {
   const pendingRequestsRef = useRef(pendingRequests);
   pendingRequestsRef.current = pendingRequests;
 
+  // Store timeout IDs to clear them when responses are received
+  const requestTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
   // Debouncing for fetch operations
   const lastFetchTimeRef = useRef<number>(0);
-  const FETCH_DEBOUNCE_MS = 1000; // Minimum 1 second between fetch calls
+  const FETCH_DEBOUNCE_MS = 100; // Minimum 100ms between fetch calls (very responsive)
 
   // MQTT listener for palm user data responses and real-time updates
   const { addMessageHandler, publishMessage, isOnline } = useMQTT({
@@ -77,8 +80,8 @@ export function usePalmUserData() {
       // Add to pending requests
       setPendingRequests(prev => new Set(prev).add(requestId));
 
-      // Set timeout for request (10 seconds)
-      setTimeout(() => {
+      // Set timeout for request (5 seconds - reduced from 10 seconds)
+      const timeoutId = setTimeout(() => {
         setPendingRequests(prev => {
           if (prev.has(requestId)) {
             console.warn(`Request ${requestId} timed out`);
@@ -88,7 +91,10 @@ export function usePalmUserData() {
           }
           return prev;
         });
-      }, 10000);
+      }, 5000);
+
+      // Store timeout ID to clear it when response is received
+      requestTimeoutsRef.current.set(requestId, timeoutId);
 
     } catch (error) {
       console.error("Error fetching palm users:", error);
@@ -189,6 +195,13 @@ export function usePalmUserData() {
 
         // Check if this is a response to one of our pending requests
         if (data.request_id && pendingRequestsRef.current.has(data.request_id)) {
+          // Clear the timeout for this request
+          const timeoutId = requestTimeoutsRef.current.get(data.request_id);
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            requestTimeoutsRef.current.delete(data.request_id);
+          }
+
           // Remove from pending requests
           setPendingRequests(prev => {
             const newSet = new Set(prev);

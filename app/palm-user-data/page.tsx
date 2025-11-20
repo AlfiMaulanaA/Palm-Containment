@@ -46,6 +46,13 @@ import {
   Trash2,
   UserPlus
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { usePalmUserData, PalmUser } from "@/hooks/usePalmUserData";
 import { usePalmUserManagement } from "@/hooks/usePalmUserManagement";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
@@ -56,6 +63,7 @@ import MQTTConnectionBadge from "@/components/mqtt-status";
 export default function PalmUserDataPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [registerUserId, setRegisterUserId] = useState("");
+  const [selectedHand, setSelectedHand] = useState<string>("");
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
 
   const {
@@ -80,12 +88,12 @@ export default function PalmUserDataPage() {
   // Filtered users based on search
   const filteredUsers = searchQuery ? searchUsers(searchQuery) : users;
 
-  // Load users on component mount only when MQTT is online
+  // Load users on component mount immediately (don't wait for MQTT)
   useEffect(() => {
-    if (!hasData && !isLoading && isMQTTOnline) {
+    if (!hasData && !isLoading) {
       fetchUsers();
     }
-  }, [hasData, isLoading, isMQTTOnline, fetchUsers]);
+  }, [hasData, isLoading, fetchUsers]);
 
   const handleRefresh = async () => {
     await refreshUsers();
@@ -143,9 +151,19 @@ export default function PalmUserDataPage() {
       return;
     }
 
+    if (!selectedHand) {
+      toast.error("Please select a hand");
+      return;
+    }
+
     try {
-      await registerUser(registerUserId.trim());
+      // Create final user ID with hand selection
+      const handLabel = selectedHand === "left" ? "Left Hand" : "Right Hand";
+      const finalUserId = `${registerUserId.trim()} - ${handLabel}`;
+
+      await registerUser(finalUserId);
       setRegisterUserId(""); // Clear input after successful command
+      setSelectedHand(""); // Clear hand selection
       setIsRegisterDialogOpen(false); // Close dialog
       // Note: Data refresh is handled automatically by the hook when registration completes
     } catch (error) {
@@ -345,10 +363,10 @@ export default function PalmUserDataPage() {
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
                               <span className="text-sm font-semibold text-primary">
-                                {(user.name || "N/A").charAt(0).toUpperCase()}
+                                {(user.user_id || "N/A").charAt(0).toUpperCase()}
                               </span>
                             </div>
-                            <span className="text-sm">{user.name || "N/A"}</span>
+                            <span className="text-sm">{user.user_id || "N/A"}</span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -500,11 +518,25 @@ export default function PalmUserDataPage() {
                   className="col-span-3"
                   disabled={isRegistering}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !isRegistering) {
+                    if (e.key === 'Enter' && !isRegistering && selectedHand) {
                       handleRegisterPalmUser();
                     }
                   }}
                 />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="hand-selection" className="text-right">
+                  Hand
+                </Label>
+                <Select value={selectedHand} onValueChange={setSelectedHand} disabled={isRegistering}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select hand" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="left">Left Hand</SelectItem>
+                    <SelectItem value="right">Right Hand</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <DialogFooter>
@@ -522,7 +554,7 @@ export default function PalmUserDataPage() {
               <Button
                 type="button"
                 onClick={handleRegisterPalmUser}
-                disabled={isRegistering || !registerUserId.trim()}
+                disabled={isRegistering || !registerUserId.trim() || !selectedHand}
                 className="bg-green-600 hover:bg-green-700"
               >
                 {isRegistering ? (
