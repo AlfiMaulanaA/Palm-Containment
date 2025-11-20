@@ -10,7 +10,11 @@ import { ThemeProvider } from "next-themes";
 // Mengambil nama aplikasi dan ikon dari environment variables atau menggunakan nilai default
 const AppName = process.env.NEXT_PUBLIC_APP_NAME || "Palm Recognition Containment";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  display: 'swap', // Prevent font loading from blocking text rendering
+  preload: false, // Disable automatic preloading to avoid unused preload warnings
+});
 
 export const metadata: Metadata = {
   title: AppName,

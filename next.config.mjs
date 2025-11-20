@@ -14,6 +14,8 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
+  // Optimize font loading for static deployment
+  optimizeFonts: false, // Disable font optimization to prevent preload warnings
   // Disable server-side features for static export
 };
 

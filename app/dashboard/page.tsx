@@ -24,9 +24,6 @@ import {
   Eye,
   Monitor,
   ScrollText,
-  RotateCw,
-  RotateCcw,
-  Undo2,
 } from "lucide-react";
 
 // --- Interfaces (based on Vue.js code)
@@ -198,6 +195,10 @@ export default function DashboardPage() {
               return newResults.length > 10 ? newResults.slice(0, 10) : newResults;
             });
 
+            // Auto-rotate images to 90 degrees when recognition result comes in
+            setImageRotation({ IR: 90, RGB: 90 });
+            addLog('Auto-rotated camera images to 90 degrees for palm recognition');
+
             // Show recognition results and start/reset auto-hide timer
             setShowRecognitionResults(true);
 
@@ -356,43 +357,6 @@ export default function DashboardPage() {
 
 
 
-      {/* Palm Compare Results */}
-      {limitedCompareResults.length > 0 && (showRecognitionResults || isHidingResults) && (
-        <Card className={`border shadow-sm transition-all duration-500 ease-in-out ${
-          showRecognitionResults && !isHidingResults
-            ? 'opacity-100 transform translate-y-0'
-            : 'opacity-0 transform -translate-y-2 pointer-events-none'
-        }`}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Hand className="h-5 w-5" />
-              Latest Palm Recognition Results
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {limitedCompareResults.map((result, idx) => (
-                <div
-                  key={idx}
-                  className="flex justify-between items-center p-3 border border-border rounded-lg bg-muted/30 dark:bg-muted/10"
-                >
-                  <div>
-                    <div className="font-semibold">{result.user}</div>
-                    <div className="text-sm text-muted-foreground">{result.timestamp}</div>
-                  </div>
-                  <Badge
-                    variant={result.score >= 0.8 ? "default" : "secondary"}
-                    className="text-sm"
-                  >
-                    Score: {result.score.toFixed(4)}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Palm Vein Images */}
       <Card className="border shadow-sm">
         <CardHeader>
@@ -423,35 +387,7 @@ export default function DashboardPage() {
                     style={{ transform: `rotate(${imageRotation.IR}deg)` }}
                     onError={() => onImageError('IR')}
                   />
-                  <div className="flex justify-center gap-1 mt-2">
-                    <Button
-                      onClick={() => rotateImageCounterClockwise('IR')}
-                      variant="outline"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      title="Rotate Counterclockwise"
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      onClick={() => rotateImageClockwise('IR')}
-                      variant="outline"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      title="Rotate Clockwise"
-                    >
-                      <RotateCw className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      onClick={() => resetImageRotation('IR')}
-                      variant="outline"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      title="Reset Rotation"
-                    >
-                      <Undo2 className="h-3 w-3" />
-                    </Button>
-                  </div>
+
                 </div>
               ) : (
                 <div className="w-full h-64 bg-muted rounded-lg flex items-center justify-center border max-w-md mx-auto">
@@ -475,35 +411,7 @@ export default function DashboardPage() {
                     style={{ transform: `rotate(${imageRotation.RGB}deg)` }}
                     onError={() => onImageError('RGB')}
                   />
-                  <div className="flex justify-center gap-1 mt-2">
-                    <Button
-                      onClick={() => rotateImageCounterClockwise('RGB')}
-                      variant="outline"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      title="Rotate Counterclockwise"
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      onClick={() => rotateImageClockwise('RGB')}
-                      variant="outline"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      title="Rotate Clockwise"
-                    >
-                      <RotateCw className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      onClick={() => resetImageRotation('RGB')}
-                      variant="outline"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      title="Reset Rotation"
-                    >
-                      <Undo2 className="h-3 w-3" />
-                    </Button>
-                  </div>
+
                 </div>
               ) : (
                 <div className="w-full h-64 bg-muted rounded-lg flex items-center justify-center border max-w-md mx-auto">
@@ -519,6 +427,43 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Palm Compare Results */}
+      {limitedCompareResults.length > 0 && (showRecognitionResults || isHidingResults) && (
+        <Card className={`border shadow-sm transition-all duration-500 ease-in-out ${
+          showRecognitionResults && !isHidingResults
+            ? 'opacity-100 transform translate-y-0'
+            : 'opacity-0 transform -translate-y-2 pointer-events-none'
+        }`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Hand className="h-5 w-5" />
+              Latest Palm Recognition Results
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {limitedCompareResults.map((result, idx) => (
+                <div
+                  key={idx}
+                  className="flex justify-between items-center p-3 border border-border rounded-lg bg-muted/30 dark:bg-muted/10"
+                >
+                  <div>
+                    <div className="font-semibold">{result.user}</div>
+                    <div className="text-sm text-muted-foreground">{result.timestamp}</div>
+                  </div>
+                  <Badge
+                    variant={result.score >= 0.8 ? "default" : "destructive"}
+                    className="text-sm"
+                  >
+                    Score: {result.score.toFixed(4)}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
 
       {/* MQTT Logs */}
