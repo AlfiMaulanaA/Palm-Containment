@@ -43,7 +43,7 @@ export function usePalmUserData() {
   const FETCH_DEBOUNCE_MS = 1000; // Minimum 1 second between fetch calls
 
   // MQTT listener for palm user data responses and real-time updates
-  const { addMessageHandler, publishMessage } = useMQTT({
+  const { addMessageHandler, publishMessage, isOnline } = useMQTT({
     topics: ["palm/users/response", "palm/status", "palm/realtime/updates"],
     autoSubscribe: true,
     enableLogging: true,
@@ -176,8 +176,14 @@ export function usePalmUserData() {
 
   // Set up response message handlers
   useEffect(() => {
-    const handleUserDataResponse = (topic: string, message: Buffer) => {
+    const handleUserDataResponse = (topic: string, message: Buffer, packet?: any) => {
       try {
+        // Skip retained messages to prevent showing old/stale user data
+        if (packet && packet.retain) {
+          console.log('Skipping retained user data message:', message.toString());
+          return;
+        }
+
         const data: PalmUsersResponse = JSON.parse(message.toString());
         console.log("Received palm users response:", data);
 
@@ -207,22 +213,41 @@ export function usePalmUserData() {
       }
     };
 
-    const handlePalmStatusResponse = (topic: string, message: Buffer) => {
+    const handlePalmStatusResponse = (topic: string, message: Buffer, packet?: any) => {
       try {
+        // Skip retained messages to prevent showing old/stale status messages
+        if (packet && packet.retain) {
+          console.log('Skipping retained status message:', message.toString());
+          return;
+        }
+
         const data = JSON.parse(message.toString());
         console.log("🔄 Received palm status response:", data);
         console.log("📊 Status:", data.status, "| Message:", data.message);
 
-        // Handle status responses for CRUD operations
+        // Handle status responses for CRUD operations ONLY
+        // Do NOT refresh data for registration-related messages
         if (data.status === "ok" || data.status === "success") {
-          // For successful operations, refresh the data (with debouncing)
-          console.log("✅ Palm operation successful, will refresh data in 500ms...");
-          toast.success("Operation completed successfully");
+          const message = data.message || "";
 
-          setTimeout(() => {
-            console.log("🔄 Executing auto-refresh after successful operation...");
-            fetchUsersRef.current(); // Use ref to avoid stale closure
-          }, 500); // Shorter delay for status responses
+          // Only refresh data for actual database operations, not registration setup
+          if (message.includes("user successfully registered") ||
+              message.includes("user deleted") ||
+              message.includes("user updated") ||
+              message.includes("user created")) {
+            // For successful database operations, refresh the data immediately
+            console.log("✅ Database operation successful, refreshing data immediately...");
+            toast.success("Operation completed successfully - refreshing data...");
+
+            // Refresh immediately without delay for better UX
+            fetchUsersRef.current(true); // Force refresh, bypass debouncing
+          } else if (message.includes("successfully set to regist mode")) {
+            // Registration mode activated - do NOT refresh data, let registration complete
+            console.log("📝 Registration mode activated - waiting for completion...");
+          } else {
+            // Other success messages - log but don't refresh
+            console.log("ℹ️ Status message received:", message);
+          }
         } else if (data.status === "error" || data.status === "failed") {
           // Show specific error message from backend
           const errorMessage = data.message || "Unknown error occurred";
@@ -237,8 +262,14 @@ export function usePalmUserData() {
       }
     };
 
-    const handleRealtimeUpdate = (topic: string, message: Buffer) => {
+    const handleRealtimeUpdate = (topic: string, message: Buffer, packet?: any) => {
       try {
+        // Skip retained messages to prevent showing old/stale real-time updates
+        if (packet && packet.retain) {
+          console.log('Skipping retained real-time update message:', message.toString());
+          return;
+        }
+
         const data = JSON.parse(message.toString());
         console.log("Received real-time update:", data);
 
@@ -271,6 +302,7 @@ export function usePalmUserData() {
     isLoading,
     lastFetch,
     hasData: users.length > 0,
+    isOnline,
 
     // Functions
     fetchUsers,

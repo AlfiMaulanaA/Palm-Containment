@@ -273,9 +273,9 @@ class PalmDatabaseHandler:
                 "timestamp": datetime.now().isoformat()
             }
 
-            # Publish response
+            # Publish response - responses should NOT be retained as they are request-specific
             if self.client and self.client.is_connected():
-                self.client.publish(self.users_response_topic, json.dumps(response), qos=self.qos, retain=self.retain)
+                self.client.publish(self.users_response_topic, json.dumps(response), qos=self.qos, retain=False)
                 logger.info(f"Published user data response for request {request_id}: {len(users)} users")
             else:
                 logger.error("MQTT client not connected, cannot send response")
@@ -294,7 +294,7 @@ class PalmDatabaseHandler:
             }
 
             if self.client and self.client.is_connected():
-                self.client.publish(self.users_response_topic, json.dumps(error_response), qos=self.qos, retain=self.retain)
+                self.client.publish(self.users_response_topic, json.dumps(error_response), qos=self.qos, retain=False)
 
     def handle_register_user(self, command_data: Dict[str, Any]):
         """Handle user registration - forward to palm device"""
@@ -462,7 +462,8 @@ class PalmDatabaseHandler:
             }
 
             if self.client and self.client.is_connected():
-                self.client.publish(self.status_topic, json.dumps(response), qos=self.qos, retain=self.retain)
+                # Status messages should NOT be retained - use retain=False
+                self.client.publish(self.status_topic, json.dumps(response), qos=self.qos, retain=False)
                 logger.info(f"Sent status response: {status} - {message}")
             else:
                 logger.error("MQTT client not connected, cannot send status response")

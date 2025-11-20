@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Table,
   TableBody,
@@ -27,6 +26,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Database,
   Users,
   RefreshCw,
@@ -36,15 +43,20 @@ import {
   Clock,
   AlertCircle,
   CheckCircle,
-  Trash2
+  Trash2,
+  UserPlus
 } from "lucide-react";
 import { usePalmUserData, PalmUser } from "@/hooks/usePalmUserData";
+import { usePalmUserManagement } from "@/hooks/usePalmUserManagement";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import MQTTConnectionBadge from "@/components/mqtt-status";
 
 export default function PalmUserDataPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [registerUserId, setRegisterUserId] = useState("");
+  const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
 
   const {
     users,
@@ -59,18 +71,21 @@ export default function PalmUserDataPage() {
     removeUser,
     userCount,
     activeUsers,
-    inactiveUsers
+    inactiveUsers,
+    isOnline: isMQTTOnline
   } = usePalmUserData();
+
+  const { registerUser, deleteUser, isProcessing: isRegistering } = usePalmUserManagement();
 
   // Filtered users based on search
   const filteredUsers = searchQuery ? searchUsers(searchQuery) : users;
 
-  // Load users on component mount
+  // Load users on component mount only when MQTT is online
   useEffect(() => {
-    if (!hasData && !isLoading) {
+    if (!hasData && !isLoading && isMQTTOnline) {
       fetchUsers();
     }
-  }, [hasData, isLoading, fetchUsers]);
+  }, [hasData, isLoading, isMQTTOnline, fetchUsers]);
 
   const handleRefresh = async () => {
     await refreshUsers();
@@ -121,13 +136,31 @@ export default function PalmUserDataPage() {
     return hasRgb && hasIr;
   };
 
+  // Register Palm User
+  const handleRegisterPalmUser = async () => {
+    if (!registerUserId.trim()) {
+      toast.error("Please enter a user ID");
+      return;
+    }
+
+    try {
+      await registerUser(registerUserId.trim());
+      setRegisterUserId(""); // Clear input after successful command
+      setIsRegisterDialogOpen(false); // Close dialog
+      // Note: Data refresh is handled automatically by the hook when registration completes
+    } catch (error) {
+      // Error is handled in the hook
+    }
+  };
+
   // CRUD Operations
   const handleDeleteUser = async (userId: string) => {
     try {
       // Trim whitespace from userId to ensure clean input
       const cleanUserId = userId.trim();
       console.log(`Attempting to delete user: "${userId}" -> "${cleanUserId}"`);
-      await removeUser(cleanUserId);
+      await deleteUser(cleanUserId);
+      // Note: Data refresh is handled automatically by the hook when deletion completes
     } catch (error) {
       // Error is handled in the hook
     }
@@ -143,121 +176,110 @@ export default function PalmUserDataPage() {
           <Separator orientation="vertical" className="h-6" />
           <div className="flex items-center gap-2">
             <Database className="h-5 w-5" />
-            <h1 className="text-lg font-semibold">Palm User Database</h1>
+            <h1 className="text-lg font-semibold">User Management</h1>
           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <MQTTConnectionBadge />
         </div>
       </header>
 
       <div className="flex flex-col gap-6 p-6">
-        {/* Header Section */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-bold tracking-tight">Database User Management</h2>
-            <p className="text-muted-foreground">View and manage palm recognition users from database</p>
-          </div>
 
-
-
-
-        </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-blue-500" />
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium">Total Users</p>
-                  <p className="text-2xl font-bold">{userCount}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Total Users</p>
+                  <p className="text-3xl font-bold">{userCount}</p>
                 </div>
+                <Users className="h-8 w-8 text-blue-500" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-4 w-4 text-green-500" />
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium">Active</p>
-                  <p className="text-2xl font-bold text-green-600">{activeUsers}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Active</p>
+                  <p className="text-3xl font-bold text-green-600">{activeUsers}</p>
                 </div>
+                <UserCheck className="h-8 w-8 text-green-500" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <UserX className="h-4 w-4 text-gray-500" />
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium">Inactive</p>
-                  <p className="text-2xl font-bold text-gray-600">{inactiveUsers}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Inactive</p>
+                  <p className="text-3xl font-bold text-gray-600">{inactiveUsers}</p>
                 </div>
+                <UserX className="h-8 w-8 text-gray-500" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-emerald-500" />
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium">Biometric Complete</p>
-                  <p className="text-2xl font-bold text-emerald-600">
+                  <p className="text-sm font-medium text-muted-foreground">Biometric Complete</p>
+                  <p className="text-3xl font-bold text-emerald-600">
                     {users.filter(user => getBiometricStatus(user)).length}
                   </p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-orange-500" />
-                <div>
-                  <p className="text-sm font-medium">Last Updated</p>
-                  <p className="text-xs text-muted-foreground">
-                    {lastFetch ? formatDate(lastFetch.toISOString()) : "Never"}
-                  </p>
-                </div>
+                <CheckCircle className="h-8 w-8 text-emerald-500" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Controls */}
+
+
+        {/* Users Table */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              Database Operations
-            </CardTitle>
-            <CardDescription>
-              Fetch user data from palm recognition database via MQTT
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <Label htmlFor="search">Search Users</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="search"
-                    type="text"
-                    placeholder="Search by Name or Email..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Palm Users
+                  {searchQuery && (
+                    <Badge variant="secondary" className="ml-2">
+                      {filteredUsers.length} of {userCount} results
+                    </Badge>
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  Complete list of registered palm recognition users from database
+                </CardDescription>
               </div>
-
               <div className="flex gap-2">
-                <Button onClick={handleRefresh} disabled={isLoading}>
+                <Button
+                  onClick={() => setIsRegisterDialogOpen(true)}
+                  disabled={isRegistering}
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {isRegistering ? (
+                    <>
+                      <Clock className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Register Palm User
+                    </>
+                  )}
+                </Button>
+                <Button onClick={handleRefresh} disabled={isLoading} size="sm">
                   {isLoading ? (
                     <>
                       <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -270,39 +292,25 @@ export default function PalmUserDataPage() {
                     </>
                   )}
                 </Button>
-
-                <Button variant="outline" onClick={handleClear} disabled={!hasData}>
-                  Clear Data
-                </Button>
               </div>
             </div>
-
-            {lastFetch && (
-              <Alert>
-                <CheckCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Last updated: {formatDate(lastFetch.toISOString())}
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Users Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Palm Users Database
-              {searchQuery && (
-                <Badge variant="secondary" className="ml-2">
-                  {filteredUsers.length} of {userCount} results
-                </Badge>
-              )}
-            </CardTitle>
-            <CardDescription>
-              Complete list of registered palm recognition users from database
-            </CardDescription>
+            {/* Search Input */}
+            <div className="flex items-center gap-4 pt-4">
+              <div className="flex-1 max-w-sm">
+                <Label htmlFor="search" className="text-sm font-medium">Search Users</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="search"
+                    type="text"
+                    placeholder="Search by name or user ID..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {isLoading && users.length === 0 ? (
@@ -315,6 +323,7 @@ export default function PalmUserDataPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
+                      <TableHead className="font-semibold w-16">#</TableHead>
                       <TableHead className="font-semibold">Name</TableHead>
                       <TableHead className="font-semibold">Biometric Status</TableHead>
                       <TableHead className="font-semibold">Account Status</TableHead>
@@ -322,13 +331,16 @@ export default function PalmUserDataPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((user, index) => (
+                    {filteredUsers.map((user: PalmUser, index: number) => (
                       <TableRow
                         key={user.id}
                         className={`hover:bg-muted/30 transition-colors ${
                           index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
                         }`}
                       >
+                        <TableCell className="font-medium text-center text-muted-foreground">
+                          {index + 1}
+                        </TableCell>
                         <TableCell className="font-medium py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
@@ -430,6 +442,8 @@ export default function PalmUserDataPage() {
           </CardContent>
         </Card>
 
+
+
         {/* Usage Instructions */}
         <Card>
           <CardHeader>
@@ -460,6 +474,72 @@ export default function PalmUserDataPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Register Palm User Dialog */}
+        <Dialog open={isRegisterDialogOpen} onOpenChange={setIsRegisterDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <UserPlus className="h-5 w-5" />
+                Register Palm User
+              </DialogTitle>
+              <DialogDescription>
+                Enter a unique user ID to register a new palm user. The palm recognition device will prompt for palm placement.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="register-user-id" className="text-right">
+                  User ID
+                </Label>
+                <Input
+                  id="register-user-id"
+                  value={registerUserId}
+                  onChange={(e) => setRegisterUserId(e.target.value)}
+                  placeholder="Enter user ID (e.g., user123)"
+                  className="col-span-3"
+                  disabled={isRegistering}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !isRegistering) {
+                      handleRegisterPalmUser();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsRegisterDialogOpen(false);
+                  setRegisterUserId("");
+                }}
+                disabled={isRegistering}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleRegisterPalmUser}
+                disabled={isRegistering || !registerUserId.trim()}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isRegistering ? (
+                  <>
+                    <Clock className="h-4 w-4 mr-2 animate-spin" />
+                    Registering...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Register User
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </SidebarInset>
   );

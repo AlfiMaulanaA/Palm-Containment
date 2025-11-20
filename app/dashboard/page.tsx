@@ -24,6 +24,9 @@ import {
   Eye,
   Monitor,
   ScrollText,
+  RotateCw,
+  RotateCcw,
+  Undo2,
 } from "lucide-react";
 
 // --- Interfaces (based on Vue.js code)
@@ -57,9 +60,29 @@ export default function DashboardPage() {
   const [imageUrl1, setImageUrl1] = useState(`http://${cameraBaseUrl}/1.ir.png?${Date.now()}`);
   const [imageUrl2, setImageUrl2] = useState(`http://${cameraBaseUrl}/1.rgb.png?${Date.now()}`);
   const [imageError, setImageError] = useState({ IR: false, RGB: false });
+  const [imageRotation, setImageRotation] = useState({ IR: 0, RGB: 0 });
+
+  // Load rotation state from localStorage on mount
+  useEffect(() => {
+    const savedRotation = localStorage.getItem('dashboard-image-rotation');
+    if (savedRotation) {
+      try {
+        const parsed = JSON.parse(savedRotation);
+        setImageRotation(parsed);
+      } catch (error) {
+        console.warn('Failed to parse saved image rotation:', error);
+      }
+    }
+  }, []);
+
+  // Save rotation state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('dashboard-image-rotation', JSON.stringify(imageRotation));
+  }, [imageRotation]);
 
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messageHandlersRef = useRef<Map<string, (topic: string, message: Buffer) => void>>(new Map());
+  const isSubscribedRef = useRef(false);
 
   // Limited compare results (like Vue.js computed)
   const limitedCompareResults = compareResults.slice(0, 5);
@@ -85,9 +108,15 @@ export default function DashboardPage() {
 
     setLogs(prev => {
       const newLogs = [logEntry, ...prev];
-      return newLogs.length > 100 ? newLogs.slice(0, 100) : newLogs;
+      return newLogs.length > 50 ? newLogs.slice(0, 50) : newLogs; // Limit to 50 logs
     });
   }, []);
+
+  // Clear logs function
+  const clearLogs = useCallback(() => {
+    setLogs([]);
+    addLog('Logs cleared');
+  }, [addLog]);
 
   // Show bootstrap alert function (like Vue.js)
   const showBootstrapAlert = useCallback((message: string, type: typeof alertType = 'info', duration = 5000) => {
@@ -123,12 +152,25 @@ export default function DashboardPage() {
     }
   }, [addLog, showBootstrapAlert, showSuccessToast]);
 
-  // Simplified MQTT message handling for demo
+  // MQTT subscription management - prevent multiple subscriptions
   useEffect(() => {
+    // Clear logs first and wait a bit before subscription
+    setLogs([]);
+
     const client = getMQTTClient();
-    if (client && client.connected) {
-      const handlePalmStatus = (topic: string, message: Buffer) => {
+    if (client && client.connected && !isSubscribedRef.current) {
+      isSubscribedRef.current = true;
+
+      // Add small delay to ensure logs are cleared before subscription
+      setTimeout(() => {
+      const handlePalmStatus = (topic: string, message: Buffer, packet?: any) => {
         try {
+          // Skip retained messages to prevent showing old/stale status messages
+          if (packet && packet.retain) {
+            console.log('Skipping retained status message:', message.toString());
+            return;
+          }
+
           const data: PalmStatus = JSON.parse(message.toString());
           if (data.status === 'ok') {
             showBootstrapAlert(`Palm: ${data.message}`, 'success');
@@ -142,42 +184,49 @@ export default function DashboardPage() {
         }
       };
 
-      const handleCompareResult = (topic: string, message: Buffer) => {
-        try {
-          const data: PalmCompareResult = JSON.parse(message.toString());
-          addLog(`Palm recognition: ${data.user} (score: ${data.score.toFixed(4)}) at ${data.timestamp}`);
+        const handleCompareResult = (topic: string, message: Buffer) => {
+          try {
+            const data: PalmCompareResult = JSON.parse(message.toString());
+            addLog(`Palm recognition: ${data.user} (score: ${data.score.toFixed(4)}) at ${data.timestamp}`);
+            console.log('Received palm compare result:', data);
+            // Add to results
+            setCompareResults(prev => {
+              const newResults = [data, ...prev];
+              return newResults.length > 10 ? newResults.slice(0, 10) : newResults;
+            });
 
-          // Add to results
-          setCompareResults(prev => {
-            const newResults = [data, ...prev];
-            return newResults.length > 10 ? newResults.slice(0, 10) : newResults;
-          });
-
-          // If score >= 0.8, auto open door
-          if (data.score >= 0.8) {
-            setTimeout(() => triggerOpenDoor(), 500); // Small delay
+            // If score >= 0.8, auto open door
+            if (data.score >= 0.8) {
+              setTimeout(() => triggerOpenDoor(), 500); // Small delay
+            }
+          } catch (e) {
+            addLog(`Palm result message: ${message.toString()}`);
           }
-        } catch (e) {
-          addLog(`Palm result message: ${message.toString()}`);
-        }
-      };
+        };
 
-      client.on('message', (topic, message) => {
-        if (topic === 'palm/status') handlePalmStatus(topic, message);
-        if (topic === 'palm/compare/result') handleCompareResult(topic, message);
-      });
+        // Store message handlers for cleanup
+        messageHandlersRef.current.set('palm/status', handlePalmStatus);
+        messageHandlersRef.current.set('palm/compare/result', handleCompareResult);
 
-      client.subscribe('palm/status');
-      client.subscribe('palm/compare/result');
+        client.on('message', (topic, message) => {
+          if (topic === 'palm/status') handlePalmStatus(topic, message);
+          if (topic === 'palm/compare/result') handleCompareResult(topic, message);
+        });
 
-      addLog('Subscribed to palm topics');
+        client.subscribe('palm/status');
+        client.subscribe('palm/compare/result');
+
+        addLog('Subscribed to palm topics');
+      }, 100); // 100ms delay
 
       return () => {
+        isSubscribedRef.current = false;
         client.unsubscribe('palm/status');
         client.unsubscribe('palm/compare/result');
+        messageHandlersRef.current.clear();
       };
     }
-  }, [addLog, showBootstrapAlert, triggerOpenDoor]);
+  }, [addLog, showBootstrapAlert, triggerOpenDoor]); // Include dependencies but prevent re-run with ref check
 
   // Refresh images function (like Vue.js)
   const refreshImages = useCallback(() => {
@@ -192,6 +241,28 @@ export default function DashboardPage() {
     addLog(`Failed to load ${type} image`);
     setImageError(prev => ({ ...prev, [type]: true }));
   }, [addLog]);
+
+  // Image rotation functions
+  const rotateImageClockwise = useCallback((type: 'IR' | 'RGB') => {
+    setImageRotation(prev => ({
+      ...prev,
+      [type]: (prev[type] + 90) % 360
+    }));
+  }, []);
+
+  const rotateImageCounterClockwise = useCallback((type: 'IR' | 'RGB') => {
+    setImageRotation(prev => ({
+      ...prev,
+      [type]: (prev[type] - 90 + 360) % 360
+    }));
+  }, []);
+
+  const resetImageRotation = useCallback((type: 'IR' | 'RGB') => {
+    setImageRotation(prev => ({
+      ...prev,
+      [type]: 0
+    }));
+  }, []);
 
 
 
@@ -214,17 +285,23 @@ export default function DashboardPage() {
           <Separator orientation="vertical" className="h-6" />
           <div className="flex items-center gap-2">
             <Hand className="h-5 w-5" />
-            <h1 className="text-lg font-semibold">Palm Recognition Dashboard</h1>
+            <h1 className="text-lg font-semibold">Live Palm Recognition Dashboard</h1>
           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => window.location.reload()}
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <MQTTConnectionBadge />
         </div>
       </header>
 
       <div className="flex flex-col gap-6 p-6">
-        {/* Header Section */}
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">Real-time Palm Vein Recognition</h2>
-          <p className="text-muted-foreground">Monitor palm recognition status and control access</p>
-        </div>
 
       {/* Bootstrap-style Alert */}
       {showAlert && (
@@ -252,23 +329,7 @@ export default function DashboardPage() {
         </Alert>
       )}
 
-      {/* MQTT Connection Status */}
-      <Card className="border shadow-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wifi className="h-5 w-5" />
-            MQTT Connection Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2">
-            <MQTTConnectionBadge />
-            <span className="text-sm text-muted-foreground">
-              MQTT connection status monitored in real-time
-            </span>
-          </div>
-        </CardContent>
-      </Card>
+
 
       {/* Palm Compare Results */}
       {limitedCompareResults.length > 0 && (
@@ -325,12 +386,44 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="text-center space-y-2">
               {!imageError.IR ? (
-                <img
-                  src={imageUrl1}
-                  alt="IR Image"
-                  className="w-full h-auto rounded-lg shadow-md border max-w-md mx-auto"
-                  onError={() => onImageError('IR')}
-                />
+                <div className="relative">
+                  <img
+                    src={imageUrl1}
+                    alt="IR Image"
+                    className="w-full h-auto rounded-lg shadow-md border max-w-md mx-auto"
+                    style={{ transform: `rotate(${imageRotation.IR}deg)` }}
+                    onError={() => onImageError('IR')}
+                  />
+                  <div className="flex justify-center gap-1 mt-2">
+                    <Button
+                      onClick={() => rotateImageCounterClockwise('IR')}
+                      variant="outline"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      title="Rotate Counterclockwise"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      onClick={() => rotateImageClockwise('IR')}
+                      variant="outline"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      title="Rotate Clockwise"
+                    >
+                      <RotateCw className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      onClick={() => resetImageRotation('IR')}
+                      variant="outline"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      title="Reset Rotation"
+                    >
+                      <Undo2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
               ) : (
                 <div className="w-full h-64 bg-muted rounded-lg flex items-center justify-center border max-w-md mx-auto">
                   <div className="text-center text-muted-foreground">
@@ -345,12 +438,44 @@ export default function DashboardPage() {
 
             <div className="text-center space-y-2">
               {!imageError.RGB ? (
-                <img
-                  src={imageUrl2}
-                  alt="RGB Image"
-                  className="w-full h-auto rounded-lg shadow-md border max-w-md mx-auto"
-                  onError={() => onImageError('RGB')}
-                />
+                <div className="relative">
+                  <img
+                    src={imageUrl2}
+                    alt="RGB Image"
+                    className="w-full h-auto rounded-lg shadow-md border max-w-md mx-auto"
+                    style={{ transform: `rotate(${imageRotation.RGB}deg)` }}
+                    onError={() => onImageError('RGB')}
+                  />
+                  <div className="flex justify-center gap-1 mt-2">
+                    <Button
+                      onClick={() => rotateImageCounterClockwise('RGB')}
+                      variant="outline"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      title="Rotate Counterclockwise"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      onClick={() => rotateImageClockwise('RGB')}
+                      variant="outline"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      title="Rotate Clockwise"
+                    >
+                      <RotateCw className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      onClick={() => resetImageRotation('RGB')}
+                      variant="outline"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      title="Reset Rotation"
+                    >
+                      <Undo2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
               ) : (
                 <div className="w-full h-64 bg-muted rounded-lg flex items-center justify-center border max-w-md mx-auto">
                   <div className="text-center text-muted-foreground">
@@ -370,10 +495,19 @@ export default function DashboardPage() {
       {/* MQTT Logs */}
       <Card className="border shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ScrollText className="h-5 w-5" />
-            System Logs
-          </CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="flex items-center gap-2">
+              <ScrollText className="h-5 w-5" />
+              System Logs
+            </CardTitle>
+            <Button
+              onClick={clearLogs}
+              variant="outline"
+              size="sm"
+            >
+              Clear Logs
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="h-32 overflow-y-auto">

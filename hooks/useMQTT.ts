@@ -160,22 +160,22 @@ export function useMQTT(options: UseMQTTOptions = {}) {
 
   // Add message handler for specific topic
   const addMessageHandler = useCallback(
-    (topic: string, handler: (topic: string, message: Buffer) => void) => {
+    (topic: string, handler: (topic: string, message: Buffer, packet?: any) => void) => {
       const client = clientRef.current;
 
       // Store the handler for potential cleanup
-      messageHandlersRef.current.set(topic, handler);
+      messageHandlersRef.current.set(topic, handler as any);
 
       if (client && client.connected) {
-        // Create wrapped handler function
-        const wrappedHandler = (receivedTopic: string, message: Buffer) => {
+        // Create wrapped handler function that includes packet information
+        const wrappedHandler = (receivedTopic: string, message: Buffer, packet?: any) => {
           if (receivedTopic === topic) {
-            handler(receivedTopic, message);
+            handler(receivedTopic, message, packet);
           }
         };
 
         // Store the wrapped handler
-        messageHandlersRef.current.set(topic, wrappedHandler);
+        messageHandlersRef.current.set(topic, wrappedHandler as any);
 
         // Add event listener
         client.on("message", wrappedHandler);

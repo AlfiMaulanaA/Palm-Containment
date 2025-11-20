@@ -73,22 +73,60 @@ export function usePalmUserManagement() {
 
       try {
         // Set up status handler for this operation
-        setupStatusHandler(onStatusUpdate);
+        const statusHandler = (status: PalmStatusResponse) => {
+          // Call callback if provided
+          if (onStatusUpdate) {
+            onStatusUpdate(status);
+          }
+
+          // Handle multi-step registration process
+          if (status.status === "ok") {
+            if (status.message.includes("successfully set to regist mode")) {
+              // First step: Registration mode activated
+              toast.info("Registration mode activated. Please place palm on sensor.");
+            } else if (status.message.includes("user successfully registered")) {
+              // Final step: Registration completed successfully
+              toast.success(`User ${userId} registered successfully!`);
+              setIsProcessing(false); // Only set to false on final success
+            } else {
+              // Other success messages
+              toast.success(status.message);
+            }
+          } else {
+            // Error status
+            toast.error(`Registration failed: ${status.message}`);
+            setIsProcessing(false); // Set to false on error
+          }
+
+          setLastStatus(status);
+        };
+
+        // Set up the status handler
+        addMessageHandler("palm/status", (topic: string, message: Buffer) => {
+          try {
+            const data: PalmStatusResponse = JSON.parse(message.toString());
+            console.log("Received palm status during registration:", data);
+            statusHandler(data);
+          } catch (error) {
+            console.error("Error parsing palm status message:", error);
+            toast.error("Received invalid palm status message");
+            setIsProcessing(false);
+          }
+        });
 
         // Send registration command
         await registerPalmUser(userId);
 
-        // Show info that command was sent (status will come separately)
-        toast.info(`Registration command sent for user: ${userId}. Please place palm on sensor.`);
+        // Show initial info that command was sent
+        toast.info(`Registration command sent for user: ${userId}`);
 
       } catch (error) {
         console.error("Palm registration error:", error);
         toast.error(error instanceof Error ? error.message : "Failed to register palm user");
-      } finally {
         setIsProcessing(false);
       }
     },
-    [isProcessing, setupStatusHandler]
+    [isProcessing, addMessageHandler]
   );
 
   /**
@@ -113,22 +151,51 @@ export function usePalmUserManagement() {
 
       try {
         // Set up status handler for this operation
-        setupStatusHandler(onStatusUpdate);
+        const statusHandler = (status: PalmStatusResponse) => {
+          // Call callback if provided
+          if (onStatusUpdate) {
+            onStatusUpdate(status);
+          }
+
+          // Handle deletion status
+          if (status.status === "ok") {
+            toast.success(`User ${userId} deleted successfully!`);
+            setIsProcessing(false); // Set to false on success
+          } else {
+            // Error status
+            toast.error(`Deletion failed: ${status.message}`);
+            setIsProcessing(false); // Set to false on error
+          }
+
+          setLastStatus(status);
+        };
+
+        // Set up the status handler
+        addMessageHandler("palm/status", (topic: string, message: Buffer) => {
+          try {
+            const data: PalmStatusResponse = JSON.parse(message.toString());
+            console.log("Received palm status during deletion:", data);
+            statusHandler(data);
+          } catch (error) {
+            console.error("Error parsing palm status message:", error);
+            toast.error("Received invalid palm status message");
+            setIsProcessing(false);
+          }
+        });
 
         // Send deletion command
         await deletePalmUser(userId);
 
-        // Show info that command was sent (status will come separately)
+        // Show initial info that command was sent
         toast.info(`Delete command sent for user: ${userId}`);
 
       } catch (error) {
         console.error("Palm deletion error:", error);
         toast.error(error instanceof Error ? error.message : "Failed to delete palm user");
-      } finally {
         setIsProcessing(false);
       }
     },
-    [isProcessing, setupStatusHandler]
+    [isProcessing, addMessageHandler]
   );
 
   return {
