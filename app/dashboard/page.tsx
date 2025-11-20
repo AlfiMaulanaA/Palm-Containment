@@ -453,8 +453,11 @@ export default function DashboardPage() {
                     <div className="text-sm text-muted-foreground">{result.timestamp}</div>
                   </div>
                   <Badge
-                    variant={result.score >= 0.8 ? "default" : "destructive"}
-                    className="text-sm"
+                    className={`text-sm ${
+                      result.score >= 0.8
+                        ? "bg-green-500 hover:bg-green-600 text-white border-green-500"
+                        : "bg-red-500 hover:bg-red-600 text-white border-red-500"
+                    }`}
                   >
                     Score: {result.score.toFixed(4)}
                   </Badge>
