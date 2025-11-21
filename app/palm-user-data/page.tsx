@@ -44,7 +44,9 @@ import {
   AlertCircle,
   CheckCircle,
   Trash2,
-  UserPlus
+  UserPlus,
+  X,
+  Hand
 } from "lucide-react";
 import {
   Select,
@@ -66,6 +68,8 @@ export default function PalmUserDataPage() {
   const [registerUserId, setRegisterUserId] = useState("");
   const [selectedHand, setSelectedHand] = useState<string>("");
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
+  const [isRegistrationOverlayVisible, setIsRegistrationOverlayVisible] = useState(false);
+  const [registrationProgress, setRegistrationProgress] = useState(30);
 
   const {
     users,
@@ -92,12 +96,50 @@ export default function PalmUserDataPage() {
   // Sorting functionality
   const { sorted: sortedUsers, sortField, sortDirection, handleSort } = useSortableTable(filteredUsers);
 
-  // Load users on component mount immediately (don't wait for MQTT)
+  // Load users on component mount, but wait for MQTT to be connected
   useEffect(() => {
-    if (!hasData && !isLoading) {
+    if (!hasData && !isLoading && isMQTTOnline) {
       fetchUsers();
     }
-  }, [hasData, isLoading, fetchUsers]);
+  }, [hasData, isLoading, isMQTTOnline, fetchUsers]);
+
+  // Animate progress from 30% to 100% over 10 seconds when overlay is visible
+  useEffect(() => {
+    if (!isRegistrationOverlayVisible) return;
+
+    setRegistrationProgress(30); // Start at 30%
+
+    const duration = 10000; // 10 seconds
+    const steps = 70; // From 30% to 100% = 70 steps
+    const interval = duration / steps; // Time per step
+
+    let currentStep = 0;
+    const progressInterval = setInterval(() => {
+      currentStep++;
+      const newProgress = 30 + (currentStep / steps) * 70; // 30 + (0-1) * 70
+
+      setRegistrationProgress(Math.min(newProgress, 100));
+
+      if (currentStep >= steps) {
+        clearInterval(progressInterval);
+      }
+    }, interval);
+
+    return () => clearInterval(progressInterval);
+  }, [isRegistrationOverlayVisible]);
+
+  // Auto-close overlay after 15 seconds and refresh browser
+  useEffect(() => {
+    if (!isRegistrationOverlayVisible) return;
+
+    const timeout = setTimeout(() => {
+      setIsRegistrationOverlayVisible(false);
+      // Refresh browser to show updated data after registration
+      window.location.reload();
+    }, 15000); // 15 seconds
+
+    return () => clearTimeout(timeout);
+  }, [isRegistrationOverlayVisible]);
 
   const handleRefresh = async () => {
     await refreshUsers();
@@ -165,12 +207,24 @@ export default function PalmUserDataPage() {
       const handLabel = selectedHand === "left" ? "Left Hand" : "Right Hand";
       const finalUserId = `${registerUserId.trim()} - ${handLabel}`;
 
-      await registerUser(finalUserId);
+      // Show overlay when registration starts
+      setIsRegistrationOverlayVisible(true);
+
+      await registerUser(finalUserId, (status) => {
+        // Hide overlay when registration completes (success or error)
+        if (status.message.includes("user successfully registered") ||
+            status.status === "failed") {
+          setIsRegistrationOverlayVisible(false);
+        }
+      });
+
       setRegisterUserId(""); // Clear input after successful command
       setSelectedHand(""); // Clear hand selection
       setIsRegisterDialogOpen(false); // Close dialog
       // Note: Data refresh is handled automatically by the hook when registration completes
     } catch (error) {
+      // Hide overlay on error
+      setIsRegistrationOverlayVisible(false);
       // Error is handled in the hook
     }
   };
@@ -181,10 +235,19 @@ export default function PalmUserDataPage() {
       // Trim whitespace from userId to ensure clean input
       const cleanUserId = userId.trim();
       console.log(`Attempting to delete user: "${userId}" -> "${cleanUserId}"`);
-      await deleteUser(cleanUserId);
+
+      await deleteUser(cleanUserId, (status) => {
+        // Refresh browser when deletion completes (success or error)
+        if (status.status === "ok" || status.status === "failed") {
+          window.location.reload();
+        }
+      });
+
       // Note: Data refresh is handled automatically by the hook when deletion completes
     } catch (error) {
       // Error is handled in the hook
+      // Still refresh browser on error to ensure UI consistency
+      window.location.reload();
     }
   };
 
@@ -202,6 +265,15 @@ export default function PalmUserDataPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            onClick={() => window.location.reload()}
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            title="Refresh page"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <MQTTConnectionBadge />
         </div>
       </header>
@@ -609,6 +681,54 @@ export default function PalmUserDataPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Palm Registration Overlay */}
+        {isRegistrationOverlayVisible && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="relative bg-background rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl border">
+              {/* Close Button */}
+              <Button
+                onClick={() => setIsRegistrationOverlayVisible(false)}
+                variant="ghost"
+                size="sm"
+                className="absolute top-4 right-4 h-8 w-8 p-0 hover:bg-muted"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+
+              {/* Content */}
+              <div className="text-center space-y-6">
+                {/* Animated Palm Icon */}
+                <div className="relative">
+                  <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto animate-pulse">
+                    <Hand className="h-12 w-12 text-primary animate-bounce" />
+                  </div>
+                  <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping"></div>
+                </div>
+
+                {/* Text */}
+                <div className="space-y-2">
+                  <h3 className="text-xl font-semibold">Palm Registration</h3>
+                  <p className="text-muted-foreground">
+                    Please place your palm on the biometric sensor
+                  </p>
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span>Processing...</span>
+                  </div>
+                </div>
+
+                {/* Progress Indicator */}
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${registrationProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </SidebarInset>
   );
