@@ -108,6 +108,14 @@ export default function PalmRecognitionPage() {
     });
   }, []);
 
+  // Refresh images function (like Vue.js)
+  const refreshImages = useCallback(() => {
+    const timestamp = Date.now();
+    setImageUrl1(`http://${cameraBaseUrl}/1.ir.png?${timestamp}`);
+    setImageUrl2(`http://${cameraBaseUrl}/1.rgb.png?${timestamp}`);
+    setImageError({ IR: false, RGB: false });
+  }, [cameraBaseUrl]);
+
   // Publish Open Door function (like Vue.js)
   const publishOpenDoor = useCallback(() => {
     if (!isConnected) {
@@ -156,6 +164,10 @@ export default function PalmRecognitionPage() {
         return newResults.length > 10 ? newResults.slice(0, 10) : newResults;
       });
 
+      // Auto-refresh images when recognition result comes in
+      refreshImages();
+      addLog('Auto-refreshing camera images after recognition result');
+
       // If score >= 0.8, publish open door (like Vue.js)
       if (data.score >= 0.8) {
         addLog('Score is high, publishing open door...');
@@ -165,15 +177,7 @@ export default function PalmRecognitionPage() {
     } catch {
       addLog(`[${topic}] ${payload}`);
     }
-  }, [addLog, publishOpenDoor, showSuccessToast]);
-
-  // Refresh images function (like Vue.js)
-  const refreshImages = useCallback(() => {
-    const timestamp = Date.now();
-    setImageUrl1(`http://${cameraBaseUrl}/1.ir.png?${timestamp}`);
-    setImageUrl2(`http://${cameraBaseUrl}/1.rgb.png?${timestamp}`);
-    setImageError({ IR: false, RGB: false });
-  }, [cameraBaseUrl]);
+  }, [addLog, publishOpenDoor, showSuccessToast, refreshImages]);
 
   // Image error handler (like Vue.js)
   const onImageError = useCallback((type: 'IR' | 'RGB') => {
@@ -198,7 +202,10 @@ export default function PalmRecognitionPage() {
       addMessageHandler('palm/compare/result', handleCompareResult);
 
       addLog('Subscribed to palm/status and palm/compare/result');
-      showBootstrapAlert('Connected to MQTT broker', 'success');
+      toast.success('Connected to MQTT broker', {
+        duration: 3000,
+        position: "top-right",
+      });
 
       // Start image refresh interval (like Vue.js)
       refreshIntervalRef.current = setInterval(refreshImages, 2000);
