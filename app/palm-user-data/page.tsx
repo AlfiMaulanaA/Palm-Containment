@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/select";
 import { usePalmUserData, PalmUser } from "@/hooks/usePalmUserData";
 import { usePalmUserManagement } from "@/hooks/usePalmUserManagement";
+import { useSortableTable } from "@/hooks/use-sort-table";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
@@ -87,6 +88,9 @@ export default function PalmUserDataPage() {
 
   // Filtered users based on search
   const filteredUsers = searchQuery ? searchUsers(searchQuery) : users;
+
+  // Sorting functionality
+  const { sorted: sortedUsers, sortField, sortDirection, handleSort } = useSortableTable(filteredUsers);
 
   // Load users on component mount immediately (don't wait for MQTT)
   useEffect(() => {
@@ -342,14 +346,47 @@ export default function PalmUserDataPage() {
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <TableHead className="font-semibold w-16">#</TableHead>
-                      <TableHead className="font-semibold">Name</TableHead>
-                      <TableHead className="font-semibold">Biometric Status</TableHead>
-                      <TableHead className="font-semibold">Account Status</TableHead>
+                      <TableHead
+                        className="font-semibold cursor-pointer hover:bg-muted/70 select-none"
+                        onClick={() => handleSort('user_id')}
+                      >
+                        <div className="flex items-center gap-2">
+                          Name
+                          <div className="flex flex-row gap-1 text-xs opacity-60">
+                            <span className={sortField === 'user_id' && sortDirection === 'asc' ? 'text-primary' : ''}>↑</span>
+                            <span className={sortField === 'user_id' && sortDirection === 'desc' ? 'text-primary' : ''}>↓</span>
+                          </div>
+                        </div>
+                      </TableHead>
+                      <TableHead
+                        className="font-semibold cursor-pointer hover:bg-muted/70 select-none"
+                        onClick={() => handleSort('rgb_feature_length')}
+                      >
+                        <div className="flex items-center gap-2">
+                          Biometric Status
+                          <div className="flex flex-row gap-1 text-xs opacity-60">
+                            <span className={sortField === 'rgb_feature_length' && sortDirection === 'asc' ? 'text-primary' : ''}>↑</span>
+                            <span className={sortField === 'rgb_feature_length' && sortDirection === 'desc' ? 'text-primary' : ''}>↓</span>
+                          </div>
+                        </div>
+                      </TableHead>
+                      <TableHead
+                        className="font-semibold cursor-pointer hover:bg-muted/70 select-none"
+                        onClick={() => handleSort('status')}
+                      >
+                        <div className="flex items-center gap-2">
+                          Account Status
+                          <div className="flex flex-row gap-1 text-xs opacity-60">
+                            <span className={sortField === 'status' && sortDirection === 'asc' ? 'text-primary' : ''}>↑</span>
+                            <span className={sortField === 'status' && sortDirection === 'desc' ? 'text-primary' : ''}>↓</span>
+                          </div>
+                        </div>
+                      </TableHead>
                       <TableHead className="text-right font-semibold">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((user: PalmUser, index: number) => (
+                    {sortedUsers.map((user: PalmUser, index: number) => (
                       <TableRow
                         key={user.id}
                         className={`hover:bg-muted/30 transition-colors ${

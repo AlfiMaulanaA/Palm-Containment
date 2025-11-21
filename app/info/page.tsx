@@ -44,11 +44,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "next-themes";
 
-// Static menu configuration (copied from app-sidebar.tsx)
+// Palm Recognition specific menu configuration
 const menuData = {
   groups: [
     {
-      title: "Overview",
+      title: "Palm Recognition",
       items: [
         {
           title: "Dashboard",
@@ -56,60 +56,43 @@ const menuData = {
           icon: BarChart3,
           isUse: true,
         },
+        {
+          title: "Palm User Data",
+          url: "/palm-user-data",
+          icon: Database,
+          isUse: true,
+        },
+        {
+          title: "Palm Recognition",
+          url: "/palm-recognition",
+          icon: Shield,
+          isUse: true,
+        },
       ],
     },
     {
-      title: "Network Configuration",
+      title: "System Configuration",
       items: [
         {
-          title: "IP Address Settings",
-          url: "/network/ip-address",
-          icon: Network,
+          title: "MQTT Settings",
+          url: "/settings/mqtt",
+          icon: SatelliteDish,
           isUse: true,
         },
         {
-          title: "WiFi Settings",
-          url: "/network/wifi",
-          icon: Wifi,
-          isUse: true,
-        },
-        {
-          title: "SNMP Protocol",
-          url: "/network/protocol/snmp",
+          title: "Camera Settings",
+          url: "/settings/camera",
           icon: Monitor,
           isUse: true,
         },
       ],
     },
     {
-      title: "Device Management",
+      title: "System Monitoring",
       items: [
         {
-          title: "Modbus Device Manager",
-          url: "/devices/modbus",
-          icon: HardDrive,
-          isUse: true,
-        },
-        {
-          title: "SNMP MIB Data",
-          url: "/snmp-data-panasonic",
-          icon: Activity,
-          isUse: true,
-        },
-      ],
-    },
-    {
-      title: "System Settings",
-      items: [
-        {
-          title: "General Settings",
-          url: "/settings/setting",
-          icon: Settings,
-          isUse: true,
-        },
-        {
-          title: "Error Logs",
-          url: "/settings/error-log",
+          title: "System Logs",
+          url: "/logs",
           icon: FileText,
           isUse: true,
         },
@@ -129,48 +112,38 @@ const mapMenuToFeatures = () => {
   const featureMap: Record<string, any> = {
     "Dashboard": {
       icon: <BarChart3 className="w-6 h-6 text-blue-600" />,
-      category: "Overview",
-      description: "Real-time dashboard displaying system status, device connectivity, and key metrics overview.",
+      category: "Palm Recognition",
+      description: "Live palm vein camera feeds with real-time recognition results and automated door control.",
     },
-    "IP Address Settings": {
-      icon: <Network className="w-6 h-6 text-green-600" />,
-      category: "Network Configuration",
-      description: "Configure network interfaces, IP addresses, subnet masks, and gateway settings.",
+    "Palm User Data": {
+      icon: <Database className="w-6 h-6 text-green-600" />,
+      category: "Palm Recognition",
+      description: "Manage registered palm users, view biometric templates, and monitor user authentication status.",
     },
-    "WiFi Settings": {
-      icon: <Wifi className="w-6 h-6 text-blue-500" />,
-      category: "Network Configuration",
-      description: "Configure wireless network settings, access points, and connection parameters.",
+    "Palm Recognition": {
+      icon: <Shield className="w-6 h-6 text-purple-600" />,
+      category: "Palm Recognition",
+      description: "Real-time palm recognition processing with configurable security thresholds and authentication results.",
     },
-    "SNMP Protocol": {
-      icon: <Monitor className="w-6 h-6 text-purple-600" />,
-      category: "Network Configuration",
-      description: "Configure SNMP communication protocol settings and monitoring parameters.",
+    "MQTT Settings": {
+      icon: <SatelliteDish className="w-6 h-6 text-red-600" />,
+      category: "System Configuration",
+      description: "Configure MQTT broker connections for real-time communication and system monitoring.",
     },
-    "Modbus Device Manager": {
-      icon: <HardDrive className="w-6 h-6 text-orange-600" />,
-      category: "Device Management",
-      description: "Manage Modbus RTU and TCP devices, configure communication parameters and data mappings.",
+    "Camera Settings": {
+      icon: <Monitor className="w-6 h-6 text-cyan-600" />,
+      category: "System Configuration",
+      description: "Configure dual RGB/IR camera settings, image quality, and palm scanning parameters.",
     },
-    "SNMP MIB Data": {
-      icon: <Activity className="w-6 h-6 text-cyan-600" />,
-      category: "Device Management",
-      description: "Access and manage SNMP MIB data, monitoring information bases for network devices.",
-    },
-    "General Settings": {
-      icon: <Settings className="w-6 h-6 text-gray-600" />,
-      category: "System Settings",
-      description: "System-wide configurations, user preferences, and interface customization options.",
-    },
-    "Error Logs": {
-      icon: <FileText className="w-6 h-6 text-red-600" />,
-      category: "System Settings",
-      description: "View system error logs, diagnostic information, and troubleshooting data.",
+    "System Logs": {
+      icon: <FileText className="w-6 h-6 text-orange-600" />,
+      category: "System Monitoring",
+      description: "View comprehensive system logs, palm recognition events, and diagnostic information.",
     },
     "Information": {
       icon: <Info className="w-6 h-6 text-indigo-600" />,
-      category: "System Settings",
-      description: "System information, version details, and feature documentation.",
+      category: "System Documentation",
+      description: "Complete palm recognition system documentation, specifications, and user guides.",
     },
   };
 
@@ -202,24 +175,24 @@ export default function InfoPage() {
   const features = mapMenuToFeatures();
 
   const techStack = [
-    { name: "Node.js", icon: <SiNodedotjs size={32} className="text-green-600" />, description: "Backend runtime environment" },
-    { name: "Python", icon: <SiPython size={32} className="text-blue-500" />, description: "Device control and automation" },
-    { name: "Next.js", icon: <SiNextdotjs size={32} className="text-black dark:text-white" />, description: "React framework for web interface" },
-    { name: "TypeScript", icon: <SiTypescript size={32} className="text-sky-600" />, description: "Type-safe JavaScript" },
-    { name: "Tailwind CSS", icon: <SiTailwindcss size={32} className="text-cyan-500" />, description: "Utility-first CSS framework" },
-    { name: "MQTT", icon: <SatelliteDish size={32} className="text-red-600" />, description: "Lightweight messaging protocol" },
-    { name: "Modbus", icon: <Network size={32} className="text-blue-600" />, description: "Industrial communication protocol" },
-    { name: "PostgreSQL", icon: <Database size={32} className="text-blue-700" />, description: "Data persistence and logging" },
+    { name: "Python", icon: <SiPython size={32} className="text-blue-500" />, description: "Palm recognition algorithms and device control" },
+    { name: "SQLite", icon: <Database size={32} className="text-blue-700" />, description: "Biometric template storage and user database" },
+    { name: "Next.js", icon: <SiNextdotjs size={32} className="text-black dark:text-white" />, description: "Modern web dashboard for user management" },
+    { name: "TypeScript", icon: <SiTypescript size={32} className="text-sky-600" />, description: "Type-safe frontend development" },
+    { name: "Tailwind CSS", icon: <SiTailwindcss size={32} className="text-cyan-500" />, description: "Responsive UI styling framework" },
+    { name: "MQTT", icon: <SatelliteDish size={32} className="text-red-600" />, description: "Real-time communication for recognition events" },
+    { name: "OpenCV", icon: <SiPython size={32} className="text-green-600" />, description: "Computer vision for palm image processing" },
+    { name: "NumPy", icon: <SiPython size={32} className="text-yellow-600" />, description: "Scientific computing for biometric algorithms" },
   ];
 
   const systemSpecs = [
-    { label: "Architecture", value: "Full-stack IoT Gateway" },
-    { label: "Communication", value: "MQTT, Modbus RTU/TCP, SNMP" },
-    { label: "Real-time Monitoring", value: "Live data streams & alerts" },
-    { label: "Automation", value: "Rule-based triggers & actions" },
-    { label: "User Interface", value: "Modern web-based dashboard" },
-    { label: "Data Persistence", value: "SQLite/PostgreSQL database" },
-    { label: "Security", value: "Authentication & secure communications" },
+    { label: "Biometric Technology", value: "Palm Vein Recognition" },
+    { label: "Camera System", value: "Dual RGB + IR Sensors" },
+    { label: "Recognition Accuracy", value: "Configurable threshold scoring" },
+    { label: "Database", value: "SQLite with biometric templates" },
+    { label: "Communication", value: "MQTT for real-time recognition" },
+    { label: "Access Control", value: "Automated door control via MQTT" },
+    { label: "Security", value: "High-accuracy biometric authentication" },
   ];
 
   return (
@@ -247,18 +220,18 @@ export default function InfoPage() {
           {/* System Overview */}
           <section>
             <div className="flex items-center gap-3 mb-4">
-              <Server className="w-6 h-6 text-primary" />
-              <h2 className="text-3xl font-bold">MQTT Gateway Dashboard</h2>
+              <Shield className="w-6 h-6 text-primary" />
+              <h2 className="text-3xl font-bold">Palm Recognition Containment System</h2>
             </div>
 
-            {/* MQTT Gateway Illustration and Description */}
+            {/* Palm Device Illustration and Description */}
             <div className="flex flex-col lg:flex-row items-start gap-8 mb-6">
               {/* Image Section */}
               <div className="flex-shrink-0 w-[300px]">
                 <div className="relative">
                   <img
-                    src={gatewayImage}
-                    alt="MQTT Gateway Illustration"
+                    src="/images/gspe.jpg"
+                    alt="Palm Recognition Device"
                     className="w-full h-auto rounded-lg shadow-lg border border-border"
                   />
                 </div>
@@ -267,18 +240,16 @@ export default function InfoPage() {
               {/* Description Section */}
               <div className="flex-1 w-full lg:w-1/2">
                 <p className="text-muted-foreground leading-relaxed text-lg">
-  A comprehensive IoT gateway solution for industrial automation and smart infrastructure management.
-  This system provides unified control, monitoring, and data management capabilities for diverse industrial
-  and IoT devices through multiple communication protocols.
+  Advanced palm vein recognition system for secure access control and containment management.
+  This biometric security solution provides high-accuracy palm recognition technology with
+  real-time authentication and automated door control capabilities.
 </p>
 
 <p className="text-muted-foreground leading-relaxed text-lg mt-4">
-  The application includes an intuitive dashboard for real-time monitoring, device configuration,
-  and performance analytics. It supports seamless integration with MQTT, Modbus, SNMP, and HTTP APIs,
-  enabling flexible connectivity across heterogeneous systems. Advanced logging, alerting, and reporting
-  features ensure reliable operation, while secure authentication and role-based access control
-  maintain system integrity. This makes it ideal for use in data centers, factories, and smart city
-  infrastructures.
+  The system features dual-camera palm scanning (RGB + IR), SQLite database integration,
+  MQTT communication for remote monitoring, and a modern web-based dashboard for user management.
+  Advanced algorithms ensure reliable recognition with configurable security thresholds,
+  while comprehensive logging and real-time monitoring provide complete system oversight.
 </p>
 
               </div>
@@ -294,7 +265,7 @@ export default function InfoPage() {
               ))}
             </div>
 
-            
+
           </section>
 
           <Separator />
@@ -364,32 +335,32 @@ export default function InfoPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Frontend (Web Interface)</CardTitle>
-                  <CardDescription>Modern, responsive dashboard for system management</CardDescription>
+                  <CardTitle>Frontend (Web Dashboard)</CardTitle>
+                  <CardDescription>Modern interface for palm recognition management</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2 text-sm">
-                    <li>• Real-time data visualization</li>
-                    <li>• Intuitive control interfaces</li>
-                    <li>• Multi-device management</li>
-                    <li>• Automated monitoring alerts</li>
-                    <li>• Responsive design for all devices</li>
+                    <li>• Live palm vein camera feeds</li>
+                    <li>• Real-time recognition results</li>
+                    <li>• User database management</li>
+                    <li>• Automated door control</li>
+                    <li>• Comprehensive system monitoring</li>
                   </ul>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Backend (Edge Processing)</CardTitle>
-                  <CardDescription>Robust gateway with protocol translation</CardDescription>
+                  <CardTitle>Backend (Palm Recognition Engine)</CardTitle>
+                  <CardDescription>Advanced biometric processing and authentication</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2 text-sm">
-                    <li>• Multi-protocol communication</li>
-                    <li>• Real-time data processing</li>
-                    <li>• Rule-based automation engine</li>
-                    <li>• Secure MQTT bridging</li>
-                    <li>• Industrial-grade reliability</li>
+                    <li>• Dual-camera palm scanning</li>
+                    <li>• Vein pattern recognition algorithms</li>
+                    <li>• SQLite biometric template storage</li>
+                    <li>• MQTT real-time communication</li>
+                    <li>• Configurable security thresholds</li>
                   </ul>
                 </CardContent>
               </Card>
@@ -414,11 +385,11 @@ export default function InfoPage() {
                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <span className="text-2xl font-bold text-blue-600">1</span>
                     </div>
-                    <CardTitle className="text-lg">Network Setup</CardTitle>
+                    <CardTitle className="text-lg">System Setup</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
-                      Configure IP addresses, WiFi settings, and MQTT broker connections
+                      Configure network settings, MQTT broker connection, and camera IP addresses
                     </p>
                   </CardContent>
                 </Card>
@@ -428,11 +399,11 @@ export default function InfoPage() {
                     <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <span className="text-2xl font-bold text-green-600">2</span>
                     </div>
-                    <CardTitle className="text-lg">Device Configuration</CardTitle>
+                    <CardTitle className="text-lg">User Registration</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
-                      Add and configure Modbus devices, I2C modules, and communication parameters
+                      Register palm users by capturing RGB and IR biometric templates for authentication
                     </p>
                   </CardContent>
                 </Card>
@@ -442,11 +413,11 @@ export default function InfoPage() {
                     <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <span className="text-2xl font-bold text-purple-600">3</span>
                     </div>
-                    <CardTitle className="text-lg">Automation Setup</CardTitle>
+                    <CardTitle className="text-lg">Access Control</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
-                      Configure triggers, actions, and automated control logic for your devices
+                      Configure security thresholds, door control integration, and monitoring alerts
                     </p>
                   </CardContent>
                 </Card>
