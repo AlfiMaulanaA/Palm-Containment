@@ -43,9 +43,6 @@ export default function DashboardPage() {
   // States (converted from Vue.js refs)
   const [compareResults, setCompareResults] = useState<PalmCompareResult[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
-  const [showAlert, setShowAlert] = useState(false);
-  const [alertMessage, setAlertMessage] = useState("");
-  const [alertType, setAlertType] = useState<"success" | "danger" | "warning" | "info">("info");
   const [openDoorStatus, setOpenDoorStatus] = useState("");
   const [showRecognitionResults, setShowRecognitionResults] = useState(false);
   const [isHidingResults, setIsHidingResults] = useState(false);
@@ -59,7 +56,8 @@ export default function DashboardPage() {
   const [imageUrl1, setImageUrl1] = useState(`http://${cameraBaseUrl}/1.ir.png?${Date.now()}`);
   const [imageUrl2, setImageUrl2] = useState(`http://${cameraBaseUrl}/1.rgb.png?${Date.now()}`);
   const [imageError, setImageError] = useState({ IR: false, RGB: false });
-  const [imageRotation, setImageRotation] = useState({ IR: 0, RGB: 0 });
+  const [imageRotation, setImageRotation] = useState({ IR: 90, RGB: 90 });
+  const [currentImageType, setCurrentImageType] = useState<'RGB' | 'IR'>('RGB'); // Start with RGB as default
 
   // Load rotation state from localStorage on mount
   useEffect(() => {
@@ -79,6 +77,15 @@ export default function DashboardPage() {
     localStorage.setItem('dashboard-image-rotation', JSON.stringify(imageRotation));
   }, [imageRotation]);
 
+  // Auto-switch between RGB and IR images every 5 seconds
+  useEffect(() => {
+    const imageSwitchInterval = setInterval(() => {
+      setCurrentImageType(prev => prev === 'RGB' ? 'IR' : 'RGB');
+    }, 5000); // Switch every 5 seconds
+
+    return () => clearInterval(imageSwitchInterval);
+  }, []);
+
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messageHandlersRef = useRef<Map<string, (topic: string, message: Buffer) => void>>(new Map());
   const isSubscribedRef = useRef(false);
@@ -87,19 +94,7 @@ export default function DashboardPage() {
   // Limited compare results (like Vue.js computed)
   const limitedCompareResults = compareResults.slice(0, 5);
 
-  // Alert class computation (like Vue.js computed)
-  const getAlertClass = (type: string) => {
-    switch (type) {
-      case 'success':
-        return 'border-green-500 bg-green-50 dark:bg-green-950/50 text-green-700 dark:text-green-400';
-      case 'danger':
-        return 'border-red-500 bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-400';
-      case 'warning':
-        return 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-400';
-      default:
-        return 'border-blue-500 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400';
-    }
-  };
+
 
   // Add log function (like Vue.js)
   const addLog = useCallback((message: string) => {
@@ -118,13 +113,7 @@ export default function DashboardPage() {
     addLog('Logs cleared');
   }, [addLog]);
 
-  // Show bootstrap alert function (like Vue.js)
-  const showBootstrapAlert = useCallback((message: string, type: typeof alertType = 'info', duration = 5000) => {
-    setAlertMessage(message);
-    setAlertType(type);
-    setShowAlert(true);
-    setTimeout(() => setShowAlert(false), duration);
-  }, []);
+
 
   // Success toast (like Vue.js Swal)
   const showSuccessToast = useCallback((message: string) => {
@@ -148,9 +137,12 @@ export default function DashboardPage() {
       showSuccessToast('Open door command sent!');
     } else {
       addLog('MQTT not connected - cannot send open door command');
-      showBootstrapAlert('MQTT not connected', 'danger');
+      toast.error('MQTT not connected', {
+        duration: 3000,
+        position: "top-right",
+      });
     }
-  }, [addLog, showBootstrapAlert, showSuccessToast]);
+  }, [addLog, showSuccessToast]);
 
   // MQTT subscription management - prevent multiple subscriptions
   useEffect(() => {
@@ -173,10 +165,16 @@ export default function DashboardPage() {
 
           const data: PalmStatus = JSON.parse(message.toString());
           if (data.status === 'ok') {
-            showBootstrapAlert(`Palm: ${data.message}`, 'success');
+            toast.success(`Palm: ${data.message}`, {
+              duration: 3000,
+              position: "top-right",
+            });
             addLog(`Palm status: ${data.message}`);
           } else {
-            showBootstrapAlert(`Palm Error: ${data.message}`, 'danger');
+            toast.error(`Palm Error: ${data.message}`, {
+              duration: 3000,
+              position: "top-right",
+            });
             addLog(`Palm error: ${data.message}`);
           }
         } catch (e) {
@@ -194,6 +192,13 @@ export default function DashboardPage() {
               const newResults = [data, ...prev];
               return newResults.length > 10 ? newResults.slice(0, 10) : newResults;
             });
+
+            // Auto-refresh images to get the latest camera feed when recognition result comes in
+            const timestamp = Date.now();
+            setImageUrl1(`http://${cameraBaseUrl}/1.ir.png?${timestamp}`);
+            setImageUrl2(`http://${cameraBaseUrl}/1.rgb.png?${timestamp}`);
+            setImageError({ IR: false, RGB: false });
+            addLog('Auto-refreshed camera images for latest palm recognition feed');
 
             // Auto-rotate images to 90 degrees when recognition result comes in
             setImageRotation({ IR: 90, RGB: 90 });
@@ -249,7 +254,7 @@ export default function DashboardPage() {
         messageHandlersRef.current.clear();
       };
     }
-  }, [addLog, showBootstrapAlert, triggerOpenDoor]); // Include dependencies but prevent re-run with ref check
+  }, [addLog, triggerOpenDoor]); // Include dependencies but prevent re-run with ref check
 
   // Refresh images function (like Vue.js)
   const refreshImages = useCallback(() => {
@@ -329,25 +334,7 @@ export default function DashboardPage() {
 
       <div className="flex flex-col gap-6 p-6">
 
-      {/* Bootstrap-style Alert */}
-      {showAlert && (
-        <Alert className={`border ${getAlertClass(alertType)}`}>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription className="flex justify-between items-center">
-            <span>{alertMessage}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAlert(false)}
-              className="h-6 w-6 p-0"
-            >
-              <XCircle className="h-4 w-4" />
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Open Door Status */}
+      {/* Open Door Status - Converted to Toast */}
       {openDoorStatus && (
         <Alert className="border-green-500 bg-green-50 dark:bg-green-950/50 text-green-700 dark:text-green-400">
           <DoorOpen className="h-4 w-4" />
@@ -376,54 +363,60 @@ export default function DashboardPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="text-center space-y-2">
-              {!imageError.IR ? (
-                <div className="relative">
-                  <img
-                    src={imageUrl1}
-                    alt="IR Image"
-                    className="w-full h-auto rounded-lg shadow-md border max-w-md mx-auto"
-                    style={{ transform: `rotate(${imageRotation.IR}deg)` }}
-                    onError={() => onImageError('IR')}
-                  />
-
-                </div>
-              ) : (
-                <div className="w-full h-64 bg-muted rounded-lg flex items-center justify-center border max-w-md mx-auto">
-                  <div className="text-center text-muted-foreground">
-                    <Monitor className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>IR Image Not Available</p>
-                    <p className="text-xs">Camera: {cameraBaseUrl}</p>
+          <div className="grid grid-cols-1 gap-4">
+            {currentImageType === 'IR' ? (
+              <div className="text-center space-y-2">
+                {!imageError.IR ? (
+                  <div className={`relative max-w-[500px] mx-auto mt-4 ${imageRotation.IR % 180 === 90 ? 'mb-8' : ''}`}>
+                    <img
+                      src={imageUrl1}
+                      alt="IR Image"
+                      className="w-full h-auto rounded-lg shadow-md border"
+                      style={{
+                        transform: `rotate(${imageRotation.IR}deg)`,
+                        maxHeight: imageRotation.IR % 180 === 90 ? 'auto' : 'auto'
+                      }}
+                      onError={() => onImageError('IR')}
+                    />
                   </div>
-                </div>
-              )}
-              <small className="block text-muted-foreground">IR Image</small>
-            </div>
-
-            <div className="text-center space-y-2">
-              {!imageError.RGB ? (
-                <div className="relative">
-                  <img
-                    src={imageUrl2}
-                    alt="RGB Image"
-                    className="w-full h-auto rounded-lg shadow-md border max-w-md mx-auto"
-                    style={{ transform: `rotate(${imageRotation.RGB}deg)` }}
-                    onError={() => onImageError('RGB')}
-                  />
-
-                </div>
-              ) : (
-                <div className="w-full h-64 bg-muted rounded-lg flex items-center justify-center border max-w-md mx-auto">
-                  <div className="text-center text-muted-foreground">
-                    <Monitor className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>RGB Image Not Available</p>
-                    <p className="text-xs">Camera: {cameraBaseUrl}</p>
+                ) : (
+                  <div className={`w-full h-52 bg-muted rounded-lg flex items-center justify-center border max-w-80 mx-auto mt-4 ${imageRotation.IR % 180 === 90 ? 'mb-8' : ''}`}>
+                    <div className="text-center text-muted-foreground">
+                      <Monitor className="h-9 w-9 mx-auto mb-2 opacity-50" />
+                      <p>IR Image Not Available</p>
+                      <p className="text-xs">Camera: {cameraBaseUrl}</p>
+                    </div>
                   </div>
-                </div>
-              )}
-              <small className="block text-muted-foreground">RGB Image</small>
-            </div>
+                )}
+                <small className="block text-muted-foreground">IR Image</small>
+              </div>
+            ) : (
+              <div className="text-center space-y-2">
+                {!imageError.RGB ? (
+                  <div className={`relative max-w-[500px] mx-auto mt-4 ${imageRotation.RGB % 180 === 90 ? 'mb-8' : ''}`}>
+                    <img
+                      src={imageUrl2}
+                      alt="RGB Image"
+                      className="w-full h-auto rounded-lg shadow-md border"
+                      style={{
+                        transform: `rotate(${imageRotation.RGB}deg)`,
+                        maxHeight: imageRotation.RGB % 180 === 90 ? 'auto' : 'auto'
+                      }}
+                      onError={() => onImageError('RGB')}
+                    />
+                  </div>
+                ) : (
+                  <div className={`w-full h-52 bg-muted rounded-lg flex items-center justify-center border max-w-80 mx-auto mt-4 ${imageRotation.RGB % 180 === 90 ? 'mb-8' : ''}`}>
+                    <div className="text-center text-muted-foreground">
+                      <Monitor className="h-9 w-9 mx-auto mb-2 opacity-50" />
+                      <p>RGB Image Not Available</p>
+                      <p className="text-xs">Camera: {cameraBaseUrl}</p>
+                    </div>
+                  </div>
+                )}
+                <small className="block text-muted-foreground">RGB Image</small>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
