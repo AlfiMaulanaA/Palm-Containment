@@ -70,6 +70,7 @@ export default function PalmUserDataPage() {
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
   const [isRegistrationOverlayVisible, setIsRegistrationOverlayVisible] = useState(false);
   const [registrationProgress, setRegistrationProgress] = useState(30);
+  const [isDeleteOverlayVisible, setIsDeleteOverlayVisible] = useState(false);
 
   const {
     users,
@@ -140,6 +141,19 @@ export default function PalmUserDataPage() {
 
     return () => clearTimeout(timeout);
   }, [isRegistrationOverlayVisible]);
+
+  // Auto-close delete overlay after 3 seconds and refresh browser
+  useEffect(() => {
+    if (!isDeleteOverlayVisible) return;
+
+    const timeout = setTimeout(() => {
+      setIsDeleteOverlayVisible(false);
+      // Refresh browser to show updated data after deletion
+      window.location.reload();
+    }, 3000); // 3 seconds
+
+    return () => clearTimeout(timeout);
+  }, [isDeleteOverlayVisible]);
 
   const handleRefresh = async () => {
     await refreshUsers();
@@ -236,17 +250,18 @@ export default function PalmUserDataPage() {
       const cleanUserId = userId.trim();
       console.log(`Attempting to delete user: "${userId}" -> "${cleanUserId}"`);
 
+      // Show delete overlay immediately when delete starts
+      setIsDeleteOverlayVisible(true);
+
       await deleteUser(cleanUserId, (status) => {
-        // Refresh browser when deletion completes (success or error)
-        if (status.status === "ok" || status.status === "failed") {
-          window.location.reload();
-        }
+        // Overlay will auto-close and refresh after 3 seconds
+        // No need to do anything here as the useEffect handles it
       });
 
-      // Note: Data refresh is handled automatically by the hook when deletion completes
+      // Note: Data refresh is handled automatically by the overlay useEffect
     } catch (error) {
-      // Error is handled in the hook
-      // Still refresh browser on error to ensure UI consistency
+      // Hide overlay on error and still refresh browser
+      setIsDeleteOverlayVisible(false);
       window.location.reload();
     }
   };
@@ -724,6 +739,33 @@ export default function PalmUserDataPage() {
                     className="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
                     style={{ width: `${registrationProgress}%` }}
                   ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete User Overlay */}
+        {isDeleteOverlayVisible && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="relative bg-background rounded-lg p-8 max-w-sm w-full mx-4 shadow-2xl border">
+              {/* Content */}
+              <div className="text-center space-y-6">
+                {/* Trash Icon */}
+                <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto">
+                  <Trash2 className="h-8 w-8 text-red-500" />
+                </div>
+
+                {/* Text */}
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold">Deleting User</h3>
+                  <p className="text-muted-foreground text-sm">
+                    Removing user from database...
+                  </p>
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span>Processing...</span>
+                  </div>
                 </div>
               </div>
             </div>

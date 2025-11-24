@@ -334,16 +334,6 @@ export default function DashboardPage() {
 
       <div className="flex flex-col gap-6 p-6">
 
-      {/* Open Door Status - Converted to Toast */}
-      {openDoorStatus && (
-        <Alert className="border-green-500 bg-green-50 dark:bg-green-950/50 text-green-700 dark:text-green-400">
-          <DoorOpen className="h-4 w-4" />
-          <AlertDescription>{openDoorStatus}</AlertDescription>
-        </Alert>
-      )}
-
-
-
       {/* Palm Vein Images */}
       <Card className="border shadow-sm">
         <CardHeader>
